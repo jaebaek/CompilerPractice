@@ -3,7 +3,6 @@
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
-#include <queue>
 #include <algorithm>
 
 // BasicBlock class definition
@@ -27,27 +26,35 @@ public:
     }
 };
 
-std::vector<BasicBlock*> computeBlocksInPreOrder(
+std::vector<BasicBlock*> computeBlocksInReversePostOrder(
         const std::vector<BasicBlock*>& blocks,
         BasicBlock* root)
 {
-    std::vector<BasicBlock*> preOrder;
+    std::vector<BasicBlock*> postOrder;
     std::unordered_set<BasicBlock*> visited;
-    std::queue<BasicBlock*> blocksToVisit;
-    blocksToVisit.push(root);
-    while (visited.size() != blocks.size()) {
-        auto* block = blocksToVisit.front();
-        blocksToVisit.pop();
+    std::vector<BasicBlock*> stack;
 
-        if (visited.count(block)) continue;
-        visited.insert(block);
-        preOrder.push_back(block);
-
+    visited.insert(root);
+    stack.push_back(root);
+    while (!stack.empty()) {
+        auto* block = stack.back();
+        bool foundNotVisited = false;
         for (auto* b : block->successors) {
-            blocksToVisit.push(b);
+            if (visited.count(b)) {
+                continue;
+            }
+            visited.insert(b);
+            stack.push_back(b);
+            foundNotVisited = true;
+            break;
+        }
+
+        if (!foundNotVisited) {
+            postOrder.push_back(block);
+            stack.pop_back();
         }
     }
-    return preOrder;
+    return std::vector<BasicBlock*>(postOrder.rbegin(), postOrder.rend());
 }
 
 // Function to compute the dominators
@@ -56,7 +63,7 @@ computeDominators(std::vector<BasicBlock*>& blocks, BasicBlock* root) {
     std::unordered_map<BasicBlock*, std::set<BasicBlock*>> dominators;
 
     // Initialize the dominators set for each block
-    blocks = computeBlocksInPreOrder(blocks, root);
+    blocks = computeBlocksInReversePostOrder(blocks, root);
     for (auto block : blocks) {
         if (block == blocks[0]) { // Entry block
             dominators[block].insert(block);
@@ -94,7 +101,9 @@ computeDominators(std::vector<BasicBlock*>& blocks, BasicBlock* root) {
     return dominators;
 }
 
-int main() {
+void test0() {
+    std::cout << __FUNCTION__ << std::endl;
+
     // Create basic blocks
     BasicBlock* A = new BasicBlock("A");
     BasicBlock* B = new BasicBlock("B");
@@ -149,6 +158,140 @@ int main() {
     for (auto block : blocks) {
         delete block;
     }
+}
 
+void test1() {
+    std::cout << __FUNCTION__ << std::endl;
+
+    //   _A_
+    //  / | \
+    // B->C<-D
+    //    |  |
+    //    E<-F
+
+    // Create basic blocks
+    BasicBlock* A = new BasicBlock("A");
+    BasicBlock* B = new BasicBlock("B");
+    BasicBlock* C = new BasicBlock("C");
+    BasicBlock* D = new BasicBlock("D");
+    BasicBlock* E = new BasicBlock("E");
+    BasicBlock* F = new BasicBlock("F");
+
+    // Set up CFG
+    A->addSuccessor(B);
+    A->addSuccessor(C);
+    A->addSuccessor(D);
+    B->addPredecessor(A);
+    C->addPredecessor(A);
+    D->addPredecessor(A);
+
+    // B->C
+    B->addSuccessor(C);
+    C->addPredecessor(B);
+
+    // C<-D
+    D->addSuccessor(C);
+    C->addPredecessor(D);
+
+    // C->E
+    C->addSuccessor(E);
+    E->addPredecessor(C);
+
+    // D->F
+    D->addSuccessor(F);
+    F->addPredecessor(D);
+
+    // F->E
+    F->addSuccessor(E);
+    E->addPredecessor(F);
+
+    std::vector<BasicBlock*> blocks = {B, E, C, D, A, F};
+
+    // Compute dominators
+    auto dominators = computeDominators(blocks, A);
+
+    for (auto block : blocks) {
+        std::cout << block->name << "\n";
+        const auto& doms = dominators[block];
+        for (auto d : doms) {
+            std::cout << "  " << d->name << "\n";
+        }
+    }
+
+    // Clean up
+    for (auto block : blocks) {
+        delete block;
+    }
+}
+
+void test2() {
+    std::cout << __FUNCTION__ << std::endl;
+
+    //   _A_
+    //  / | \
+    // B->C<-D
+    //    |\_
+    //    E<-F
+
+    // Create basic blocks
+    BasicBlock* A = new BasicBlock("A");
+    BasicBlock* B = new BasicBlock("B");
+    BasicBlock* C = new BasicBlock("C");
+    BasicBlock* D = new BasicBlock("D");
+    BasicBlock* E = new BasicBlock("E");
+    BasicBlock* F = new BasicBlock("F");
+
+    // Set up CFG
+    A->addSuccessor(B);
+    A->addSuccessor(C);
+    A->addSuccessor(D);
+    B->addPredecessor(A);
+    C->addPredecessor(A);
+    D->addPredecessor(A);
+
+    // B->C
+    B->addSuccessor(C);
+    C->addPredecessor(B);
+
+    // C<-D
+    D->addSuccessor(C);
+    C->addPredecessor(D);
+
+    // C->E
+    C->addSuccessor(E);
+    E->addPredecessor(C);
+
+    // C->F
+    C->addSuccessor(F);
+    F->addPredecessor(C);
+
+    // F->E
+    F->addSuccessor(E);
+    E->addPredecessor(F);
+
+    std::vector<BasicBlock*> blocks = {B, E, C, D, A, F};
+
+    // Compute dominators
+    auto dominators = computeDominators(blocks, A);
+
+    for (auto block : blocks) {
+        std::cout << block->name << "\n";
+        const auto& doms = dominators[block];
+        for (auto d : doms) {
+            std::cout << "  " << d->name << "\n";
+        }
+    }
+
+    // Clean up
+    for (auto block : blocks) {
+        delete block;
+    }
+}
+
+int main(int argc, const char *argv[])
+{
+    test0();
+    test1();
+    test2();
     return 0;
 }
